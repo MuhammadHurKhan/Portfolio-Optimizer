@@ -29,9 +29,8 @@ S = risk_models.sample_cov(df)
 # Optimize portfolio
 try:
     ef = EfficientFrontier(mu, S)
-    weights = ef.efficient_return(target_return/100, market_neutral=True, risk_free_rate=0.0348)
+    weights = ef.efficient_return(target_return/100, market_neutral=True)
     ef.portfolio_performance(verbose=True)
-
     # Visualize portfolio performance
     portfolio_returns = (df.pct_change() * weights).sum(axis=1)
     cumulative_returns = (1 + portfolio_returns).cumprod()
