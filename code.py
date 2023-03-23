@@ -27,20 +27,24 @@ mu = expected_returns.mean_historical_return(df)
 S = risk_models.sample_cov(df)
 
 # Optimize portfolio
-ef = EfficientFrontier(mu, S)
-weights = ef.efficient_return(target_return/100, market_neutral=True, risk_free_rate=0.0348)
-ef.portfolio_performance(verbose=True)
+try:
+    ef = EfficientFrontier(mu, S)
+    weights = ef.efficient_return(target_return/100, market_neutral=True, risk_free_rate=0.0348)
+    ef.portfolio_performance(verbose=True)
 
-# Visualize portfolio performance
-portfolio_returns = (df.pct_change() * weights).sum(axis=1)
-cumulative_returns = (1 + portfolio_returns).cumprod()
+    # Visualize portfolio performance
+    portfolio_returns = (df.pct_change() * weights).sum(axis=1)
+    cumulative_returns = (1 + portfolio_returns).cumprod()
 
-fig = go.Figure()
-fig.add_trace(go.Scatter(x=cumulative_returns.index, y=cumulative_returns.values, name='Portfolio'))
-fig.add_trace(go.Scatter(x=cumulative_returns.index, y=(1 + df.pct_change().mean(axis=1)).cumprod().values, name='Benchmark'))
-fig.update_layout(title='Portfolio Performance', xaxis_title='Date', yaxis_title='Cumulative Returns')
-st.plotly_chart(fig, use_container_width=True)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=cumulative_returns.index, y=cumulative_returns.values, name='Portfolio'))
+    fig.add_trace(go.Scatter(x=cumulative_returns.index, y=(1 + df.pct_change().mean(axis=1)).cumprod().values, name='Benchmark'))
+    fig.update_layout(title='Portfolio Performance', xaxis_title='Date', yaxis_title='Cumulative Returns')
+    st.plotly_chart(fig, use_container_width=True)
 
-# Display optimized portfolio weights
-st.subheader("Optimized Portfolio Weights")
-st.write(weights)
+    # Display optimized portfolio weights
+    st.subheader("Optimized Portfolio Weights")
+    st.write(weights)
+
+except Exception as e:
+    st.error("Error occurred during optimization: {}".format(str(e)))
