@@ -28,7 +28,7 @@ S = risk_models.sample_cov(df)
 
 # Optimize portfolio
 ef = EfficientFrontier(mu, S)
-weights = ef.efficient_return(target_return/100, market_neutral=True, risk_free_rate=0.02)
+weights = ef.efficient_return(target_return/100, market_neutral=True, risk_free_rate=0.0348)
 ef.portfolio_performance(verbose=True)
 
 # Visualize portfolio performance
