@@ -27,17 +27,19 @@ mu = expected_returns.mean_historical_return(df)
 S = risk_models.sample_cov(df)
 
 # Optimize portfolio
+# Calculate expected returns and covariance matrix
+mu = expected_returns.mean_historical_return(df)
+S = risk_models.sample_cov(df)
+
 # Optimize portfolio
 try:
     ef = EfficientFrontier(mu, S)
-    weights = ef.efficient_return(target_return/100, market_neutral=True)
-    # Replace negative weights with small positive values
-    weights = np.maximum(weights, 0.0001)
-    # Normalize weights so they sum to 1
-    weights /= np.sum(weights)
-    ef.portfolio_performance(verbose=True)
+    weights = ef.max_sharpe()
+    cleaned_weights = ef.clean_weights()
+    expected_return, volatility, _ = ef.portfolio_performance()
+    
     # Visualize portfolio performance
-    portfolio_returns = (df.pct_change() * weights).sum(axis=1)
+    portfolio_returns = (df.pct_change() * cleaned_weights).sum(axis=1)
     cumulative_returns = (1 + portfolio_returns).cumprod()
 
     fig = go.Figure()
@@ -48,7 +50,12 @@ try:
 
     # Display optimized portfolio weights
     st.subheader("Optimized Portfolio Weights")
-    st.write((weights * 100).round(2))
+    st.write(cleaned_weights)
+
+    # Display portfolio performance
+    st.subheader("Portfolio Performance")
+    st.write("Expected annual return: {:.1f}%".format(expected_return * 100))
+    st.write("Annual volatility: {:.1f}%".format(volatility * 100))
 
 except Exception as e:
     st.error("Error occurred during optimization: {}".format(str(e)))
