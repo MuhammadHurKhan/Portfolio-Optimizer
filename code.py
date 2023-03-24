@@ -29,20 +29,14 @@ S = risk_models.sample_cov(df)
 # Optimize portfolio
 try:
     ef = EfficientFrontier(mu, S)
-    weights = ef.efficient_return(target_return/100, weights_sum_to_one=True)
-    weights_percentage = {ticker: weight*100 for ticker, weight in weights.items()}
+    weights = ef.efficient_return(target_return/100, market_neutral=True)
+    cleaned_weights = ef.clean_weights()
     ef.portfolio_performance(verbose=True)
     # Visualize portfolio performance
-    fig = go.Figure()
-    returns_range = np.linspace(target_return/100, max(mu), num=100)
-    frontier_y = [ef.efficiency_return(ret) for ret in returns_range]
-    frontier_x = returns_range
-    fig.add_trace(go.Scatter(x=frontier_y, y=frontier_x, mode='lines', name='Efficient Frontier'))
-
-    # Visualize portfolio performance
-    portfolio_returns = (df.pct_change() * weights).sum(axis=1)
+    portfolio_returns = (df.pct_change() * cleaned_weights).sum(axis=1)
     cumulative_returns = (1 + portfolio_returns).cumprod()
 
+    fig = go.Figure()
     fig.add_trace(go.Scatter(x=cumulative_returns.index, y=cumulative_returns.values, name='Portfolio'))
     fig.add_trace(go.Scatter(x=cumulative_returns.index, y=(1 + df.pct_change().mean(axis=1)).cumprod().values, name='Benchmark'))
     fig.update_layout(title='Portfolio Performance', xaxis_title='Date', yaxis_title='Cumulative Returns')
@@ -50,7 +44,8 @@ try:
 
     # Display optimized portfolio weights
     st.subheader("Optimized Portfolio Weights")
-    st.write(pd.Series(weights_percentage, name="Weight (%)"))
+    st.write(cleaned_weights * 100)
 
 except Exception as e:
     st.error("Error occurred during optimization: {}".format(str(e)))
+
