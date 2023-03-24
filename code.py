@@ -1,45 +1,65 @@
 import streamlit as st
 import yfinance as yf
-import numpy as np
-import pandas as pd
+from datetime import date
 from pypfopt import expected_returns, risk_models, EfficientFrontier
-from datetime import datetime, timedelta
+import plotly.graph_objs as go
 
-# Set start and end date for historical stock data
-end_date = datetime.today().strftime('%Y-%m-%d')
-start_date = (datetime.today() - timedelta(days=365*5)).strftime('%Y-%m-%d')
 
-# Get list of S&P 500 companies
-table=pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')
-df = table[0]
+# Set app title
+st.title("Optimal Portfolio Allocation")
 
-# Allow user to input initial investment, desired return, and risk tolerance
-initial_investment = st.number_input("Enter your initial investment:", min_value=1)
-desired_return = st.slider("Enter your desired annual return:", min_value=0, max_value=100, step=1)
-risk_tolerance = st.slider("Enter your risk tolerance (lower value means lower risk):", min_value=0, max_value=100, step=1)
 
-# Get historical data for selected stocks
-symbols = st.multiselect("Select the companies you want to include in your portfolio:", df['Symbol'].values)
-data = yf.download(symbols, start=start_date, end=end_date)['Adj Close']
-data.dropna(inplace=True)
+# Create search bar
+st.sidebar.subheader("Search for a company")
+symbol = st.sidebar.text_input("Ticker symbol (e.g. AAPL)")
 
-# Calculate expected returns and covariance matrix
-mu = expected_returns.mean_historical_return(data)
-S = risk_models.sample_cov(data)
+
+# Load data for selected company
+today = date.today().strftime('%Y-%m-%d')
+if symbol:
+    stock = yf.Ticker(symbol)
+    df = stock.history(period="max")[['Close']]
+    df = df.rename(columns={'Close': symbol})
+
+
+# Create input fields for user
+st.sidebar.subheader("Portfolio Parameters")
+initial_investment = st.sidebar.number_input("Initial investment amount ($)", value=100000, step=1000)
+target_return = st.sidebar.number_input("Target annualized return (%)", value=10.0, step=0.5)
+risk = st.sidebar.number_input("Desired annualized volatility (%)", value=20.0, step=0.5)
+
 
 # Optimize portfolio
-try:
+if symbol:
+    # Calculate expected returns and covariance matrix
+    mu = expected_returns.mean_historical_return(df)
+    S = risk_models.sample_cov(df)
+
     ef = EfficientFrontier(mu, S)
-    weights = ef.efficient_return(desired_return/100)
-    weights = ef.clean_weights()
-    allocation = {symbol: int(weights[symbol] * initial_investment / data[symbol][-1]) for symbol in weights}
-    portfolio_value = sum(allocation[symbol] * data[symbol][-1] for symbol in allocation)
-    returns = data.pct_change().dropna()
-    portfolio_returns = (returns * pd.Series(allocation)).sum(axis=1)
-    annualized_return = ((1 + portfolio_returns.mean()) ** 252 - 1)
-    annualized_volatility = (portfolio_returns.std() * np.sqrt(252))
+    weights = ef.efficient_return(target_return/100, market_neutral=True, weight_bounds=(0,1))
+
+    # Calculate allocation of shares
+    latest_prices = stock.history(period="1d")['Close'].values[0]
+    allocation = {s: round(weights[s] * initial_investment / latest_prices, 2) for s in weights.keys()}
+
+    # Calculate portfolio statistics
+    portfolio_value = sum([allocation[s] * latest_prices[i] for i, s in enumerate(allocation.keys())])
+    returns = (df.pct_change().mean() * allocation).sum()
+    annualized_return = (1 + returns) ** 252 - 1
+    cov_matrix = df.pct_change().cov()
+    annualized_volatility = (cov_matrix.mul(allocation, axis=0).mul(allocation, axis=1).sum().sum() * 252) ** 0.5
     sharpe_ratio = (annualized_return - 0.02) / annualized_volatility
-    
+
+    # Visualize portfolio performance
+    portfolio_returns = (df.pct_change() * allocation).sum(axis=1)
+    cumulative_returns = (1 + portfolio_returns).cumprod()
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=cumulative_returns.index, y=cumulative_returns.values, name='Portfolio'))
+    fig.add_trace(go.Scatter(x=cumulative_returns.index, y=(1 + df.pct_change().mean(axis=1)).cumprod().values, name='Benchmark'))
+    fig.update_layout(title='Portfolio Performance', xaxis_title='Date', yaxis_title='Cumulative Returns')
+    st.plotly_chart(fig, use_container_width=True)
+
     # Show allocation of shares
     st.subheader("Allocation of Shares")
     for symbol, shares in allocation.items():
