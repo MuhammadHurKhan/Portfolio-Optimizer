@@ -72,5 +72,5 @@ if symbol:
     st.write("Annualized Volatility: {:.2%}".format(annualized_volatility))
     st.write("Sharpe Ratio: {:.2f}".format(sharpe_ratio))
 
-except Exception as e:
+else:
     st.error("Error occurred during optimization: {}".format(str(e)))
