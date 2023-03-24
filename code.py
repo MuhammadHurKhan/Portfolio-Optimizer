@@ -2,60 +2,71 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from pypfopt import expected_returns, risk_models, EfficientFrontier
-import plotly.graph_objs as go
+from pypfopt import expected_returns, risk_models, EfficientFrontier, objective_functions
 
-st.set_page_config(layout='wide')
 
-# Sidebar
-st.sidebar.title("Portfolio Optimization")
-st.sidebar.subheader("Enter Desired Portfolio Return and Risk")
-target_return = st.sidebar.slider("Desired Return", 0.0, 50.0, 10.0, 0.5)
-target_risk = st.sidebar.slider("Desired Risk", 0.0, 30.0, 10.0, 0.5)
+# Define function to get stock data
+@st.cache
+def get_data():
+    # Download stock data from Yahoo Finance
+    sp500 = yf.download("^GSPC", start="2010-01-01", end="2022-03-23")
+    return sp500
 
-# Main content
-st.title("Portfolio Optimization")
-st.markdown("This app helps you optimize your investment portfolio using the Efficient Frontier algorithm.")
 
-# Load stock data
-tickers = ["AAPL", "GOOGL", "TSLA", "MSFT", "AMZN"]
-df = yf.download(tickers, start="2010-01-01", end="2022-01-01")["Adj Close"]
-df = df.dropna()
+# Define function to optimize portfolio
+def optimize_portfolio(data, init_investment, target_return, risk):
+    # Calculate expected returns and covariance matrix
+    mu = expected_returns.mean_historical_return(data)
+    S = risk_models.sample_cov(data)
 
-# Calculate expected returns and covariance matrix
-mu = expected_returns.mean_historical_return(df)
-S = risk_models.sample_cov(df)
+    # Define optimization objective
+    if risk == 'Minimize volatility':
+        ef = EfficientFrontier(mu, S, weight_bounds=(0, 1))
+        ef.min_volatility()
+    else:
+        ef = EfficientFrontier(mu, S, weight_bounds=(0, 1))
+        ef.efficient_return(target_return / 100, objective_functions.L2_reg, None, risk)
 
-# Optimize portfolio
-# Calculate expected returns and covariance matrix
-mu = expected_returns.mean_historical_return(df)
-S = risk_models.sample_cov(df)
+    # Get optimized portfolio weights
+    weights = ef.clean_weights()
+    weights = {k: v * init_investment for k, v in weights.items()}
+    weights = {k: round(v / data[k][-1], 2) for k, v in weights.items()}
 
-# Optimize portfolio
-try:
-    ef = EfficientFrontier(mu, S)
-    weights = ef.max_sharpe()
-    cleaned_weights = ef.clean_weights()
-    expected_return, volatility, _ = ef.portfolio_performance()
-    
-    # Visualize portfolio performance
-    portfolio_returns = (df.pct_change() * cleaned_weights).sum(axis=1)
-    cumulative_returns = (1 + portfolio_returns).cumprod()
+    return weights
 
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=cumulative_returns.index, y=cumulative_returns.values, name='Portfolio'))
-    fig.add_trace(go.Scatter(x=cumulative_returns.index, y=(1 + df.pct_change().mean(axis=1)).cumprod().values, name='Benchmark'))
-    fig.update_layout(title='Portfolio Performance', xaxis_title='Date', yaxis_title='Cumulative Returns')
-    st.plotly_chart(fig, use_container_width=True)
 
-    # Display optimized portfolio weights
-    st.subheader("Optimized Portfolio Weights")
-    st.write(cleaned_weights)
+# Define app
+def app():
+    # Set page title
+    st.set_page_config(page_title='Portfolio Optimizer')
 
-    # Display portfolio performance
-    st.subheader("Portfolio Performance")
-    st.write("Expected annual return: {:.1f}%".format(expected_return * 100))
-    st.write("Annual volatility: {:.1f}%".format(volatility * 100))
+    # Set page header
+    st.header('Portfolio Optimizer')
 
-except Exception as e:
-    st.error("Error occurred during optimization: {}".format(str(e)))
+    # Get stock data
+    data = get_data()
+
+    # Show data
+    st.subheader('Stock Data')
+    st.write(data.tail())
+
+    # Get user inputs
+    init_investment = st.number_input('Initial investment amount ($)', value=100000, step=10000)
+    target_return = st.number_input('Desired annual return (%)', value=10.0, step=0.1)
+    risk = st.selectbox('Risk', ['Minimize volatility', 'Target volatility'])
+
+    # Optimize portfolio
+    try:
+        weights = optimize_portfolio(data, init_investment, target_return, risk)
+
+        # Show optimized portfolio weights
+        st.subheader('Optimized Portfolio Weights')
+        st.write(pd.Series(weights).to_frame('No. of Shares'))
+
+    except Exception as e:
+        st.error(f'Error occurred during optimization: {str(e)}')
+
+
+# Run app
+if __name__ == '__main__':
+    app()
