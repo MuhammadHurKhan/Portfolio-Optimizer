@@ -50,22 +50,22 @@ if len(df.columns) > 0:
     # Calculate S&P 500 and NASDAQ annual returns
     sp500 = yf.Ticker('^GSPC')
     sp500_hist = sp500.history(start="2010-01-01", end=today)
-    sp500_annual_return = (sp500_hist['Close'][-1] / sp500_hist['Close'][0]) ** (1/len(sp500_hist)) - 1
-
-    nasdaq = yf.Ticker('^IXIC')
+    sp500_annual_return = (sp500_hist['Close'][-1] / sp500_hist['Close'][0]) ** (1/len(sp500_hist['Close']) - 1
+        nasdaq = yf.Ticker('^IXIC')
     nasdaq_hist = nasdaq.history(start="2010-01-01", end=today)
-    nasdaq_annual_return = (nasdaq_hist['Close'][-1] / nasdaq_hist['Close'][0]) ** (1/len(nasdaq_hist)) - 1
+    nasdaq_annual_return = (nasdaq_hist['Close'][-1] / nasdaq_hist['Close'][0]) ** (1/len(nasdaq_hist['Close'])) - 1
 
     # Visualize portfolio performance
     portfolio_returns = (df.pct_change() * allocation).sum(axis=1)
     cumulative_returns = (1 + portfolio_returns).cumprod()
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=cumulative_returns.index, y= (1 + df['SP500'].pct_change().mean(axis=1)).cumprod().values, name='S&P 500'))
-    fig.add_trace(go.Scatter(x=cumulative_returns.index, y=(1 + df['NASDAQ'].pct_change().mean(axis=1)).cumprod().values, name='NASDAQ'))
+    fig.add_trace(go.Scatter(x=cumulative_returns.index, y=(1 + sp500_hist['Close'].pct_change()).cumprod(), name='S&P 500'))
+    fig.add_trace(go.Scatter(x=cumulative_returns.index, y=(1 + nasdaq_hist['Close'].pct_change()).cumprod(), name='NASDAQ'))
+    fig.add_trace(go.Scatter(x=cumulative_returns.index, y=cumulative_returns.values, name='Portfolio'))
     fig.update_layout(title='Portfolio Performance', xaxis_title='Date', yaxis_title='Cumulative Returns')
     st.plotly_chart(fig, use_container_width=True)
-    
+
     # Show allocation of shares
     st.subheader("Allocation of Shares")
     for symbol, shares in allocation.items():
@@ -78,3 +78,5 @@ if len(df.columns) > 0:
     st.write("Annualized Volatility: {:.2%}".format(annualized_volatility))
     st.write("Sharpe Ratio: {:.2f}".format(sharpe_ratio))
 
+                                                                                 
+                                          
