@@ -1,68 +1,56 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
 import yfinance as yf
+import numpy as np
+import pandas as pd
 from pypfopt import expected_returns, risk_models, EfficientFrontier
-import plotly.graph_objects as go
+from datetime import datetime, timedelta
 
-# Define function to get stock data from Yahoo Finance
-@st.cache
-def get_data(tickers):
-    df = yf.download(tickers, start="2016-01-01", end="2021-12-31")["Adj Close"]
-    return df
+# Set start and end date for historical stock data
+end_date = datetime.today().strftime('%Y-%m-%d')
+start_date = (datetime.today() - timedelta(days=365*5)).strftime('%Y-%m-%d')
 
-# Define function to optimize portfolio and return weights
-def optimize_portfolio(df, target_return, risk_tolerance, initial_investment):
-    # Calculate expected returns and covariance matrix
-    mu = expected_returns.mean_historical_return(df)
-    S = risk_models.sample_cov(df)
+# Get list of S&P 500 companies
+table=pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')
+df = table[0]
 
-    # Optimize portfolio
-    try:
-        ef = EfficientFrontier(mu, S)
-        weights = ef.efficient_risk(target_volatility=risk_tolerance, market_neutral=True)
-        cleaned_weights = ef.clean_weights()
-        cleaned_weights = {ticker: weight for ticker, weight in cleaned_weights.items() if weight > 0}
+# Allow user to input initial investment, desired return, and risk tolerance
+initial_investment = st.number_input("Enter your initial investment:", min_value=1)
+desired_return = st.slider("Enter your desired annual return:", min_value=0, max_value=100, step=1)
+risk_tolerance = st.slider("Enter your risk tolerance (lower value means lower risk):", min_value=0, max_value=100, step=1)
 
-        # Calculate number of shares for each stock
-        prices = df.iloc[-1, :]
-        total_value = initial_investment
-        shares = {ticker: int((total_value * weight) / prices[ticker]) for ticker, weight in cleaned_weights.items()}
+# Get historical data for selected stocks
+symbols = st.multiselect("Select the companies you want to include in your portfolio:", df['Symbol'].values)
+data = yf.download(symbols, start=start_date, end=end_date)['Adj Close']
+data.dropna(inplace=True)
 
-        # Calculate remaining cash and add to stock with highest weight
-        remaining_cash = total_value - sum([shares[ticker] * prices[ticker] for ticker in shares])
-        max_ticker = max(cleaned_weights, key=cleaned_weights.get)
-        shares[max_ticker] += int(remaining_cash / prices[max_ticker])
+# Calculate expected returns and covariance matrix
+mu = expected_returns.mean_historical_return(data)
+S = risk_models.sample_cov(data)
 
-        # Calculate portfolio performance
-        portfolio_returns = (df.pct_change() * shares).sum(axis=1)
-        cumulative_returns = (1 + portfolio_returns).cumprod()
+# Optimize portfolio
+try:
+    ef = EfficientFrontier(mu, S)
+    weights = ef.efficient_return(desired_return/100)
+    weights = ef.clean_weights()
+    allocation = {symbol: int(weights[symbol] * initial_investment / data[symbol][-1]) for symbol in weights}
+    portfolio_value = sum(allocation[symbol] * data[symbol][-1] for symbol in allocation)
+    returns = data.pct_change().dropna()
+    portfolio_returns = (returns * pd.Series(allocation)).sum(axis=1)
+    annualized_return = ((1 + portfolio_returns.mean()) ** 252 - 1)
+    annualized_volatility = (portfolio_returns.std() * np.sqrt(252))
+    sharpe_ratio = (annualized_return - 0.02) / annualized_volatility
+    
+    # Show allocation of shares
+    st.subheader("Allocation of Shares")
+    for symbol, shares in allocation.items():
+        st.write("{}: {}".format(symbol, shares))
 
-        # Visualize portfolio performance
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=cumulative_returns.index, y=cumulative_returns.values, name='Portfolio'))
-        fig.add_trace(go.Scatter(x=cumulative_returns.index, y=(1 + df.pct_change().mean(axis=1)).cumprod().values, name='Benchmark'))
-        fig.update_layout(title='Portfolio Performance', xaxis_title='Date', yaxis_title='Cumulative Returns')
-        st.plotly_chart(fig, use_container_width=True)
+    # Show portfolio statistics
+    st.subheader("Portfolio Statistics")
+    st.write("Portfolio Value: ${:,.2f}".format(portfolio_value))
+    st.write("Annualized Return: {:.2%}".format(annualized_return))
+    st.write("Annualized Volatility: {:.2%}".format(annualized_volatility))
+    st.write("Sharpe Ratio: {:.2f}".format(sharpe_ratio))
 
-        return shares
-
-    except Exception as e:
-        st.error("Error occurred during optimization: {}".format(str(e)))
-
-
-# Get user inputs
-tickers = st.text_input("Enter comma-separated list of tickers (e.g. AAPL,GOOG,MSFT)", "AAPL,GOOG,MSFT,AMZN,JPM")
-initial_investment = st.number_input("Enter initial investment amount", min_value=1)
-target_return = st.slider("Select desired return", 0, 30, 10)
-risk_tolerance = st.slider("Select risk tolerance (volatility)", 1, 50, 20)
-
-# Get data and optimize portfolio
-df = get_data(tickers)
-weights = optimize_portfolio(df, target_return/100, risk_tolerance/100, initial_investment)
-
-# Display optimized portfolio weights
-if weights is not None:
-    st.subheader("Optimized Portfolio")
-    for ticker, shares in weights.items():
-        st.write(f"{ticker}: {shares} shares")
+except Exception as e:
+    st.error("Error occurred during optimization: {}".format(str(e)))
