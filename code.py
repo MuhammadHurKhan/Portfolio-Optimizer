@@ -77,5 +77,5 @@ def get_portfolio_allocation(symbols_list, initial_investment):
         st.write("$", round(portfolio_value, 2))
     else: 
         st.write("Please enter valid company names and corresponding shares")
- get_portfolio_allocation(symbols_list, initial_investment)
+get_portfolio_allocation(symbols_list, initial_investment)
     
