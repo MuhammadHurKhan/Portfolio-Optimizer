@@ -33,7 +33,7 @@ try:
     weights_percentage = {ticker: weight*100 for ticker, weight in weights.items()}
     ef.portfolio_performance(verbose=True)
     # Visualize portfolio performance
-   fig = go.Figure()
+    fig = go.Figure()
     returns_range = np.linspace(target_return/100, max(mu), num=100)
     frontier_y = [ef.efficiency_return(ret) for ret in returns_range]
     frontier_x = returns_range
