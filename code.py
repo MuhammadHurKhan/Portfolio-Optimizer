@@ -50,7 +50,7 @@ if len(df.columns) > 0:
     # Calculate S&P 500 and NASDAQ annual returns
     sp500 = yf.Ticker('^GSPC')
     sp500_hist = sp500.history(start="2010-01-01", end=today)
-    sp500_annual_return = (sp500_hist['Close'][-1] / sp500_hist['Close'][0]) ** (1/len(sp500_hist['Close']) - 1
+    sp500_annual_return = (sp500_hist['Close'][-1] / sp500_hist['Close'][0]) ** (1/len(sp500_hist['Close']) - 1)
     nasdaq = yf.Ticker('^IXIC')
     nasdaq_hist = nasdaq.history(start="2010-01-01", end=today)
     nasdaq_annual_return = (nasdaq_hist['Close'][-1] / nasdaq_hist['Close'][0]) ** (1/len(nasdaq_hist['Close'])) - 1
