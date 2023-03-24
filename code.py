@@ -30,10 +30,14 @@ S = risk_models.sample_cov(df)
 try:
     ef = EfficientFrontier(mu, S)
     weights = ef.efficient_return(target_return/100, market_neutral=True)
-    cleaned_weights = ef.clean_weights()
+    weights_array = np.array(list(weights.values()))
+    weights_sum = weights_array.sum()
+    weights_pct = weights_array / weights_sum * 100
+    weights_dict = dict(zip(df.columns, weights_pct))
     ef.portfolio_performance(verbose=True)
+
     # Visualize portfolio performance
-    portfolio_returns = (df.pct_change() * cleaned_weights).sum(axis=1)
+    portfolio_returns = (df.pct_change() * weights_array).sum(axis=1)
     cumulative_returns = (1 + portfolio_returns).cumprod()
 
     fig = go.Figure()
@@ -44,8 +48,7 @@ try:
 
     # Display optimized portfolio weights
     st.subheader("Optimized Portfolio Weights")
-    st.write(cleaned_weights * 100)
+    st.write(weights_dict)
 
 except Exception as e:
     st.error("Error occurred during optimization: {}".format(str(e)))
-
