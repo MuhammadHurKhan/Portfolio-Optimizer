@@ -20,7 +20,7 @@ def optimize_portfolio(df, target_return, risk_tolerance, initial_investment):
     # Optimize portfolio
     try:
         ef = EfficientFrontier(mu, S)
-        weights = ef.efficient_risk(target_volatility=risk_tolerance, market_neutral=True, risk_free_rate=0.02, weights_sum_to_one=True)
+        weights = ef.efficient_risk(target_volatility=risk_tolerance, market_neutral=True, weights_sum_to_one=True)
         cleaned_weights = ef.clean_weights()
         cleaned_weights = {ticker: weight for ticker, weight in cleaned_weights.items() if weight > 0}
 
