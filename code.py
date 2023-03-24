@@ -36,7 +36,7 @@ if symbol:
     S = risk_models.sample_cov(df)
 
     ef = EfficientFrontier(mu, S)
-    weights = ef.efficient_return(target_return/100, market_neutral=TruE)
+    weights = ef.efficient_return(target_return/100, market_neutral=True)
 
     # Calculate allocation of shares
     latest_prices = stock.history(period="1d")['Close'].values[0]
