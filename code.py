@@ -10,7 +10,7 @@ st.set_page_config(layout='wide')
 # Sidebar
 st.sidebar.title("Portfolio Optimization")
 st.sidebar.subheader("Enter Desired Portfolio Return and Risk")
-target_return = st.sidebar.slider("Desired Return", 0.0, 30.0, 10.0, 0.5)
+target_return = st.sidebar.slider("Desired Return", 0.0, 100.0, 10.0, 0.5)
 target_risk = st.sidebar.slider("Desired Risk", 0.0, 30.0, 10.0, 0.5)
 
 # Main content
