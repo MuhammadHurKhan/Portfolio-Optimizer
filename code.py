@@ -78,4 +78,5 @@ def get_portfolio_allocation(symbols_list, initial_investment):
     else: 
         st.write("Please enter valid company names and corresponding shares")
 get_portfolio_allocation(symbols_list, initial_investment)
+
     
